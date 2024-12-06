@@ -1,0 +1,6 @@
+module = "icon"
+
+[glyphs]
+edit = "fontawesome-pencil"
+save = "entypo-floppy"
+trash = "typicons-trash"
