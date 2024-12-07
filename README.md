@@ -51,6 +51,7 @@ passing the path of your font definition:
 
 ```rust
 pub fn main() {
+    println!("cargo::rerun-if-changed=fonts/example-icons.toml");
     iced_fontello::build("fonts/example-icons.toml").expect("Build example-icons font");
 }
 ```
@@ -63,6 +64,7 @@ Finally, it will generate a type-safe `iced` API that lets you use the font. In 
 ```rust
 // Generated automatically by iced_fontello at build time.
 // Do not edit manually.
+// d24460a00249b2acd0ccc64c3176452c546ad12d1038974e974d7bdb4cdb4a8f
 use iced::widget::{text, Text};
 use iced::Font;
 

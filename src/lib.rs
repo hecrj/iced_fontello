@@ -38,6 +38,7 @@
 //!
 //! ```rust,no_run
 //! pub fn main() {
+//!     println!("cargo::rerun-if-changed=fonts/example-icons.toml");
 //!     iced_fontello::build("fonts/example-icons.toml").expect("Build example-icons font");
 //! }
 //! ```
@@ -50,6 +51,7 @@
 //! ```rust,ignore
 //! // Generated automatically by iced_fontello at build time.
 //! // Do not edit manually.
+//! // d24460a00249b2acd0ccc64c3176452c546ad12d1038974e974d7bdb4cdb4a8f
 //! use iced::widget::{text, Text};
 //! use iced::Font;
 //!
@@ -102,8 +104,6 @@ use std::path::{Path, PathBuf};
 
 pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
     let path = path.as_ref();
-
-    println!("cargo::rerun-if-changed={path}.toml", path = path.display());
 
     let definition: Definition = {
         let contents = fs::read_to_string(path).unwrap_or_else(|error| {
@@ -194,17 +194,38 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         .to_string_lossy()
         .into_owned();
 
-    if !path.with_extension("ttf").exists() {
-        let config = Config {
-            name: file_name.clone(),
-            css_prefix_text: "icon-",
-            css_use_suffix: false,
-            hinting: true,
-            units_per_em: 1000,
-            ascent: 850,
-            glyphs: glyphs.values().cloned().collect(),
-        };
+    let config = Config {
+        name: file_name.clone(),
+        css_prefix_text: "icon-",
+        css_use_suffix: false,
+        hinting: true,
+        units_per_em: 1000,
+        ascent: 850,
+        glyphs: glyphs.values().cloned().collect(),
+    };
 
+    let hash = {
+        use sha2::Digest as _;
+
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(serde_json::to_string(&config).expect("Serialize config as JSON"));
+
+        format!("{:x}", hasher.finalize())
+    };
+
+    let module_target = PathBuf::new()
+        .join("src")
+        .join(definition.module)
+        .with_extension("rs");
+
+    let module_contents = fs::read_to_string(&module_target).unwrap_or_default();
+    let module_hash = module_contents
+        .lines()
+        .nth(2)
+        .unwrap_or_default()
+        .trim_start_matches("// ");
+
+    if hash != module_hash || !path.with_extension("ttf").exists() {
         let client = reqwest::Client::new();
         let session = client
             .post("https://fontello.com/")
@@ -253,6 +274,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
     module.push_str(&format!(
         "// Generated automatically by iced_fontello at build time.\n\
          // Do not edit manually.\n\
+         // {hash}\n\
          use iced::widget::{{text, Text}};\n\
          use iced::Font;\n\n\
          pub const FONT: &[u8] = include_bytes!(\"../{path}\");\n\n",
@@ -276,14 +298,7 @@ fn icon<'a>(codepoint: &'a str) -> Text<'a> {{
 }}\n"
     ));
 
-    let module_target = PathBuf::new()
-        .join("src")
-        .join(definition.module)
-        .with_extension("rs");
-
-    if !module_target.exists()
-        || module != fs::read_to_string(&module_target).expect("Read module contents")
-    {
+    if module != module_contents {
         fs::write(module_target, module).expect("Write font module");
     }
 
