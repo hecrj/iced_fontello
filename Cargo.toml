@@ -3,6 +3,11 @@ name = "iced_fontello"
 version = "0.13.0"
 edition = "2021"
 description = "Generate type-safe icon fonts for `iced` at compile time"
+repository = "https://github.com/hecrj/iced_fontello"
+license = "MIT"
+categories = ["gui"]
+keywords = ["gui", "ui", "graphics", "interface", "widgets"]
+rust-version = "1.80"
 
 [dependencies]
 reqwest = { version = "0.12", features = ["blocking", "json", "multipart"] }
