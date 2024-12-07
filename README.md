@@ -18,7 +18,7 @@ Powered by [Fontello].
 
 </div>
 
-# Usage
+## Usage
 Create a `.toml` file somewhere in your crate with the font definition:
 
 ```toml
@@ -103,7 +103,7 @@ row![icon::edit(), icon::save(), icon::trash()].spacing(10)
 
 Check out [the full example](example) to see it all in action.
 
-# Packaging
+## Packaging
 If you plan to package your crate, you must make sure you include the generated module
 and font file in the final package. `build` is effectively a no-op when the module and
 the font already exist and are up-to-date.
