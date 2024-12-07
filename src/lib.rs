@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! A compile-time, type-safe icon font generator for [`iced`].
 //! Powered by [Fontello].
 //!
