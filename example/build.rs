@@ -1,3 +1,3 @@
 fn main() {
-    iced_fontello::build("fonts/example-icons").expect("Generate example-icons font");
+    iced_fontello::build("fonts/example-icons.toml").expect("Generate example-icons font");
 }

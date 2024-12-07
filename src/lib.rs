@@ -105,10 +105,19 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
     println!("cargo::rerun-if-changed={path}.toml", path = path.display());
 
     let definition: Definition = {
-        let contents =
-            fs::read_to_string(path.with_extension("toml")).expect("Read font definition");
+        let contents = fs::read_to_string(path).unwrap_or_else(|error| {
+            panic!(
+                "Font definition {path} could not be read: {error}",
+                path = path.display()
+            )
+        });
 
-        toml::from_str(&contents).expect("Deserialize font definition")
+        toml::from_str(&contents).unwrap_or_else(|error| {
+            panic!(
+                "Font definition {path} is invalid: {error}",
+                path = path.display()
+            )
+        })
     };
 
     let fonts = parse_fonts();
@@ -245,8 +254,8 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
          // Do not edit manually.\n\
          use iced::widget::{{text, Text}};\n\
          use iced::Font;\n\n\
-         pub const FONT: &[u8] = include_bytes!(\"../{path}.ttf\");\n\n",
-        path = path.display()
+         pub const FONT: &[u8] = include_bytes!(\"../{path}\");\n\n",
+        path = path.with_extension("ttf").display()
     ));
 
     for (name, glyph) in glyphs {
