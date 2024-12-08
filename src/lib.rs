@@ -215,7 +215,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
 
     let module_target = PathBuf::new()
         .join("src")
-        .join(definition.module)
+        .join(definition.module.replace("::", "/"))
         .with_extension("rs");
 
     let module_contents = fs::read_to_string(&module_target).unwrap_or_default();
@@ -277,8 +277,14 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
          // {hash}\n\
          use iced::widget::{{text, Text}};\n\
          use iced::Font;\n\n\
-         pub const FONT: &[u8] = include_bytes!(\"../{path}\");\n\n",
-        path = path.with_extension("ttf").display()
+         pub const FONT: &[u8] = include_bytes!(\"{path}\");\n\n",
+        path = PathBuf::from(
+            std::iter::repeat("../")
+                .take(definition.module.split("::").count())
+                .collect::<String>()
+        )
+        .join(path.with_extension("ttf"))
+        .display()
     ));
 
     for (name, glyph) in glyphs {
@@ -299,6 +305,10 @@ fn icon<'a>(codepoint: &'a str) -> Text<'a> {{
     ));
 
     if module != module_contents {
+        if let Some(directory) = module_target.parent() {
+            fs::create_dir_all(directory).expect("Create parent directory of font module");
+        }
+
         fs::write(module_target, module).expect("Write font module");
     }
 
