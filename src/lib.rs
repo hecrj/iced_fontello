@@ -269,22 +269,23 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         .expect("Extract font file");
     }
 
+    let relative_path = PathBuf::from(
+        std::iter::repeat("../")
+            .take(definition.module.split("::").count())
+            .collect::<String>(),
+    );
+
     let mut module = String::new();
 
     module.push_str(&format!(
         "// Generated automatically by iced_fontello at build time.\n\
-         // Do not edit manually.\n\
+         // Do not edit manually. Source: {source}\n\
          // {hash}\n\
          use iced::widget::{{text, Text}};\n\
          use iced::Font;\n\n\
          pub const FONT: &[u8] = include_bytes!(\"{path}\");\n\n",
-        path = PathBuf::from(
-            std::iter::repeat("../")
-                .take(definition.module.split("::").count())
-                .collect::<String>()
-        )
-        .join(path.with_extension("ttf"))
-        .display()
+        source = relative_path.join(path.with_extension("toml")).display(),
+        path = relative_path.join(path.with_extension("ttf")).display()
     ));
 
     for (name, glyph) in glyphs {
