@@ -169,24 +169,6 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         })
         .collect();
 
-    #[derive(Serialize)]
-    struct Config {
-        name: String,
-        css_prefix_text: &'static str,
-        css_use_suffix: bool,
-        hinting: bool,
-        units_per_em: u32,
-        ascent: u32,
-        glyphs: Vec<ChosenGlyph>,
-    }
-
-    #[derive(Clone, Serialize)]
-    struct ChosenGlyph {
-        uid: Id,
-        css: String,
-        code: u64,
-        src: String,
-    }
 
     let file_name = path
         .file_stem()
@@ -336,7 +318,26 @@ struct Glyph {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-struct Id(String);
+pub(crate) struct Id(String);
+
+#[derive(Serialize)]
+struct Config {
+    name: String,
+    css_prefix_text: &'static str,
+    css_use_suffix: bool,
+    hinting: bool,
+    units_per_em: u32,
+    ascent: u32,
+    glyphs: Vec<ChosenGlyph>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct ChosenGlyph {
+    uid: Id,
+    css: String,
+    code: u64,
+    src: String,
+}
 
 fn parse_fonts() -> BTreeMap<String, Font> {
     #[derive(Deserialize)]
