@@ -269,11 +269,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         .expect("Extract font file");
     }
 
-    let relative_path = PathBuf::from(
-        std::iter::repeat("../")
-            .take(definition.module.split("::").count())
-            .collect::<String>(),
-    );
+    let relative_path = PathBuf::from("../".repeat(definition.module.split("::").count()));
 
     let mut module = String::new();
 
