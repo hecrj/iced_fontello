@@ -94,10 +94,14 @@
 //! If you plan to package your crate, you must make sure you include the generated module
 //! and font file in the final package. `build` is effectively a no-op when the module and
 //! the font already exist and are up-to-date.
+mod svg_parser;
+
+use rand::Rng;
 use reqwest::blocking as reqwest;
 use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -123,7 +127,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
 
     let fonts = parse_fonts();
 
-    let glyphs: BTreeMap<String, ChosenGlyph> = definition
+    let mut glyphs: BTreeMap<String, ChosenGlyph> = definition
         .glyphs
         .into_iter()
         .map(|(name, id)| {
@@ -164,11 +168,42 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
                     css: glyph.name.clone(),
                     code: glyph.code,
                     src: font.name.clone(),
+                    selected: None,
+                    svg: None,
                 },
             )
         })
         .collect();
 
+    let svg_icons: BTreeMap<String, ChosenGlyph> =
+        if let (Some(parent), Some(svg_icons)) = (path.parent(), definition.svg_icons) {
+            let mut rng = rand::thread_rng();
+            svg_icons
+                .into_iter()
+                .enumerate()
+                .flat_map(|(i, (name, id))| {
+                    if glyphs.contains_key(&name) {
+                        panic!("name \"{name}\" for svg icon was already used on a glyph");
+                    }
+                    let uid: String = (0..32).fold(String::new(), |mut s, _| {
+                        write!(&mut s, "{:x}", rng.gen_range(0..15)).unwrap_or_default();
+                        s
+                    });
+                    let code = 0xe800 + (i as u64);
+                    let id = id.trim_end_matches(".svg");
+                    let icon_path = parent.join(id).with_extension("svg");
+
+                    svg_parser::parse_image(&icon_path, name.clone(), code, uid)
+                        .map(|glyph| (name, glyph))
+                })
+                .collect()
+        } else {
+            BTreeMap::new()
+        };
+
+    if !svg_icons.is_empty() {
+        glyphs.extend(svg_icons);
+    }
 
     let file_name = path
         .file_stem()
@@ -301,6 +336,7 @@ pub enum Error {}
 struct Definition {
     module: String,
     glyphs: BTreeMap<String, String>,
+    svg_icons: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -337,6 +373,16 @@ pub(crate) struct ChosenGlyph {
     css: String,
     code: u64,
     src: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    svg: Option<SvgIcon>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct SvgIcon {
+    path: String,
+    width: f64,
 }
 
 fn parse_fonts() -> BTreeMap<String, Font> {
