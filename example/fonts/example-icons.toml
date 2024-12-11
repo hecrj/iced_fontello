@@ -4,3 +4,8 @@ module = "icon"
 edit = "fontawesome-pencil"
 save = "entypo-floppy"
 trash = "typicons-trash"
+
+[svg_icons]
+iced = "iced.svg"
+iced_logo = "iced-logo"
+rust = "rust"
