@@ -23,8 +23,6 @@ pub fn parse_image(icon_path: &Path, name: String, code: u64, uid: String) -> Op
     let mut svg_y = 0.0;
     let mut svg_width = 0.0;
     let mut svg_height = 0.0;
-    let mut svg_width_percent = 1.0;
-    let mut svg_height_percent = 1.0;
     let mut transforms = String::new();
     let mut transforms_map = BTreeMap::new();
 
@@ -76,11 +74,9 @@ pub fn parse_image(icon_path: &Path, name: String, code: u64, uid: String) -> Op
                 if let Some(w) = attributes.get("width") {
                     let w = w.to_string();
                     if w.ends_with("%") {
-                        svg_width_percent = w
-                            .trim_end_matches("%")
-                            .parse()
-                            .expect("couldn't parse \"width\" from svg icon");
-                        svg_width_percent /= 100.0;
+                        // Ignore percentage sizes just like fontello does here:
+                        // https://github.com/fontello/fontello/blob/master/client/fontello/app/import/_svg_image_flatten.js#L198-L203
+                        svg_width = 0.0;
                     } else {
                         svg_width = w.parse().expect("couldn't parse \"width\" from svg icon");
                     }
@@ -88,11 +84,9 @@ pub fn parse_image(icon_path: &Path, name: String, code: u64, uid: String) -> Op
                 if let Some(h) = attributes.get("height") {
                     let h = h.to_string();
                     if h.ends_with("%") {
-                        svg_height_percent = h
-                            .trim_end_matches("%")
-                            .parse()
-                            .expect("couldn't parse \"height\" from svg icon");
-                        svg_height_percent /= 100.0;
+                        // Ignore percentage sizes just like fontello does here:
+                        // https://github.com/fontello/fontello/blob/master/client/fontello/app/import/_svg_image_flatten.js#L198-L203
+                        svg_height = 0.0;
                     } else {
                         svg_height = h.parse().expect("couldn't parse \"height\" from svg icon");
                     }
@@ -134,11 +128,9 @@ pub fn parse_image(icon_path: &Path, name: String, code: u64, uid: String) -> Op
     pt.translate(-svg_x, -svg_y);
 
     // Scale the final path
-    actual_height *= svg_height_percent;
     let scale = 1000.0 / actual_height;
     pt.scale(scale, scale);
     svg_width *= scale;
-    svg_width *= svg_width_percent;
 
     // Final transformed path
     svg_path = pt.to_string();
