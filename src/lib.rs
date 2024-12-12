@@ -127,10 +127,33 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
 
     let fonts = parse_fonts();
 
+    let mut rng = rand::thread_rng();
+    let mut svg_idx = 0;
     let mut glyphs: BTreeMap<String, ChosenGlyph> = definition
         .glyphs
         .into_iter()
-        .map(|(name, id)| {
+        .flat_map(|(name, id)| {
+            if id.ends_with(".svg") {
+                let uid = (0..32).fold(String::new(), |mut s, _| {
+                    write!(&mut s, "{:x}", rng.gen_range(0..15)).unwrap_or_default();
+                    s
+                });
+                let code = 0xe800 + svg_idx;
+                let icon_path = path
+                    .parent()
+                    .unwrap_or_else(|| {
+                        panic!("Couldn't get parent folder of \"{}\"", path.display())
+                    })
+                    .join(id);
+
+                if let Some(glyph) = svg_parser::parse_image(&icon_path, name.clone(), code, uid) {
+                    svg_idx += 1;
+                    return Some((name, glyph));
+                } else {
+                    return None;
+                }
+            }
+
             let Some((font_name, glyph)) = id.split_once('-') else {
                 panic!(
                     "Invalid glyph identifier: \"{id}\"\n\
@@ -161,7 +184,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
                 );
             };
 
-            (
+            Some((
                 name,
                 ChosenGlyph {
                     uid: glyph.uid.clone(),
@@ -171,7 +194,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
                     selected: None,
                     svg: None,
                 },
-            )
+            ))
         })
         .collect();
 
