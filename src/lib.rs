@@ -129,7 +129,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
 
     let mut rng = rand::thread_rng();
     let mut svg_idx = 0;
-    let mut glyphs: BTreeMap<String, ChosenGlyph> = definition
+    let glyphs: BTreeMap<String, ChosenGlyph> = definition
         .glyphs
         .into_iter()
         .flat_map(|(name, id)| {
@@ -197,36 +197,6 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
             ))
         })
         .collect();
-
-    let svg_icons: BTreeMap<String, ChosenGlyph> =
-        if let (Some(parent), Some(svg_icons)) = (path.parent(), definition.svg_icons) {
-            let mut rng = rand::thread_rng();
-            svg_icons
-                .into_iter()
-                .enumerate()
-                .flat_map(|(i, (name, id))| {
-                    if glyphs.contains_key(&name) {
-                        panic!("name \"{name}\" for svg icon was already used on a glyph");
-                    }
-                    let uid: String = (0..32).fold(String::new(), |mut s, _| {
-                        write!(&mut s, "{:x}", rng.gen_range(0..15)).unwrap_or_default();
-                        s
-                    });
-                    let code = 0xe800 + (i as u64);
-                    let id = id.trim_end_matches(".svg");
-                    let icon_path = parent.join(id).with_extension("svg");
-
-                    svg_parser::parse_image(&icon_path, name.clone(), code, uid)
-                        .map(|glyph| (name, glyph))
-                })
-                .collect()
-        } else {
-            BTreeMap::new()
-        };
-
-    if !svg_icons.is_empty() {
-        glyphs.extend(svg_icons);
-    }
 
     let file_name = path
         .file_stem()
@@ -359,7 +329,6 @@ pub enum Error {}
 struct Definition {
     module: String,
     glyphs: BTreeMap<String, String>,
-    svg_icons: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone)]
