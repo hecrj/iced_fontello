@@ -94,10 +94,14 @@
 //! If you plan to package your crate, you must make sure you include the generated module
 //! and font file in the final package. `build` is effectively a no-op when the module and
 //! the font already exist and are up-to-date.
+mod svg_parser;
+
+use rand::Rng;
 use reqwest::blocking as reqwest;
 use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -123,10 +127,33 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
 
     let fonts = parse_fonts();
 
+    let mut rng = rand::thread_rng();
+    let mut svg_idx = 0;
     let glyphs: BTreeMap<String, ChosenGlyph> = definition
         .glyphs
         .into_iter()
-        .map(|(name, id)| {
+        .flat_map(|(name, id)| {
+            if id.ends_with(".svg") {
+                let uid = (0..32).fold(String::new(), |mut s, _| {
+                    write!(&mut s, "{:x}", rng.gen_range(0..15)).unwrap_or_default();
+                    s
+                });
+                let code = 0xe800 + svg_idx;
+                let icon_path = path
+                    .parent()
+                    .unwrap_or_else(|| {
+                        panic!("Couldn't get parent folder of \"{}\"", path.display())
+                    })
+                    .join(id);
+
+                if let Some(glyph) = svg_parser::parse_image(&icon_path, name.clone(), code, uid) {
+                    svg_idx += 1;
+                    return Some((name, glyph));
+                } else {
+                    return None;
+                }
+            }
+
             let Some((font_name, glyph)) = id.split_once('-') else {
                 panic!(
                     "Invalid glyph identifier: \"{id}\"\n\
@@ -157,36 +184,19 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
                 );
             };
 
-            (
+            Some((
                 name,
                 ChosenGlyph {
                     uid: glyph.uid.clone(),
                     css: glyph.name.clone(),
                     code: glyph.code,
                     src: font.name.clone(),
+                    selected: None,
+                    svg: None,
                 },
-            )
+            ))
         })
         .collect();
-
-    #[derive(Serialize)]
-    struct Config {
-        name: String,
-        css_prefix_text: &'static str,
-        css_use_suffix: bool,
-        hinting: bool,
-        units_per_em: u32,
-        ascent: u32,
-        glyphs: Vec<ChosenGlyph>,
-    }
-
-    #[derive(Clone, Serialize)]
-    struct ChosenGlyph {
-        uid: Id,
-        css: String,
-        code: u64,
-        src: String,
-    }
 
     let file_name = path
         .file_stem()
@@ -269,11 +279,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         .expect("Extract font file");
     }
 
-    let relative_path = PathBuf::from(
-        std::iter::repeat("../")
-            .take(definition.module.split("::").count())
-            .collect::<String>(),
-    );
+    let relative_path = PathBuf::from("../".repeat(definition.module.split("::").count()));
 
     let mut module = String::new();
 
@@ -340,7 +346,36 @@ struct Glyph {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-struct Id(String);
+pub(crate) struct Id(String);
+
+#[derive(Serialize)]
+struct Config {
+    name: String,
+    css_prefix_text: &'static str,
+    css_use_suffix: bool,
+    hinting: bool,
+    units_per_em: u32,
+    ascent: u32,
+    glyphs: Vec<ChosenGlyph>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct ChosenGlyph {
+    uid: Id,
+    css: String,
+    code: u64,
+    src: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    svg: Option<SvgIcon>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct SvgIcon {
+    path: String,
+    width: f64,
+}
 
 fn parse_fonts() -> BTreeMap<String, Font> {
     #[derive(Deserialize)]
