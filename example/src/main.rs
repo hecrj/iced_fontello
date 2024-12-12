@@ -26,12 +26,11 @@ impl Example {
                 icon::trash().size(30),
                 ", iced:",
                 icon::iced().size(30),
-                ", iced_logo:",
-                icon::iced_logo().size(30),
                 ", rust:",
                 icon::rust().size(30),
                 ", end!",
             ]
+            .align_y(iced::Center)
             .spacing(10),
         )
         .padding(20)

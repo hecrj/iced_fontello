@@ -1,6 +1,6 @@
 // Generated automatically by iced_fontello at build time.
 // Do not edit manually. Source: ../fonts/example-icons.toml
-// c3c0e9102caff0b7aaf530ab362b4cbdd01fa0cddf30328fc8bf24547a78cfc1
+// e6b6b05a99285736e22dd3b5fe11de6d5158add84b89e3b58a650d69cbd8cb7b
 use iced::widget::{text, Text};
 use iced::Font;
 
@@ -14,12 +14,8 @@ pub fn iced<'a>() -> Text<'a> {
     icon("\u{E800}")
 }
 
-pub fn iced_logo<'a>() -> Text<'a> {
-    icon("\u{E801}")
-}
-
 pub fn rust<'a>() -> Text<'a> {
-    icon("\u{E802}")
+    icon("\u{E801}")
 }
 
 pub fn save<'a>() -> Text<'a> {
