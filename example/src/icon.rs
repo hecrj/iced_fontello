@@ -18,6 +18,6 @@ pub fn trash<'a>() -> Text<'a> {
     icon("\u{E10A}")
 }
 
-fn icon<'a>(codepoint: &'a str) -> Text<'a> {
+fn icon(codepoint: &str) -> Text<'_> {
     text(codepoint).font(Font::with_name("example-icons"))
 }

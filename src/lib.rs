@@ -300,7 +300,7 @@ pub fn {name}<'a>() -> Text<'a> {{
 
     module.push_str(&format!(
         "\
-fn icon<'a>(codepoint: &'a str) -> Text<'a> {{
+fn icon(codepoint: &str) -> Text<'_> {{
     text(codepoint).font(Font::with_name(\"{file_name}\"))
 }}\n"
     ));
