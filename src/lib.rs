@@ -96,12 +96,11 @@
 //! the font already exist and are up-to-date.
 mod svg_parser;
 
-use rand::Rng;
 use reqwest::blocking as reqwest;
 use serde::{Deserialize, Serialize};
+use sha2::Digest as _;
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -127,17 +126,18 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
 
     let fonts = parse_fonts();
 
-    let mut rng = rand::thread_rng();
     let mut svg_idx = 0;
     let glyphs: BTreeMap<String, ChosenGlyph> = definition
         .glyphs
         .into_iter()
         .flat_map(|(name, id)| {
             if id.ends_with(".svg") {
-                let uid = (0..32).fold(String::new(), |mut s, _| {
-                    write!(&mut s, "{:x}", rng.gen_range(0..15)).unwrap_or_default();
-                    s
-                });
+                let uid = {
+                    let mut hasher = sha2::Sha256::new();
+                    hasher.update(&id);
+
+                    format!("{:x}", hasher.finalize()).split_off(32)
+                };
                 let code = 0xe800 + svg_idx;
                 let icon_path = path
                     .parent()
@@ -215,8 +215,6 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
     };
 
     let hash = {
-        use sha2::Digest as _;
-
         let mut hasher = sha2::Sha256::new();
         hasher.update(serde_json::to_string(&config).expect("Serialize config as JSON"));
 
