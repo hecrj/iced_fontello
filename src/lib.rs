@@ -94,8 +94,11 @@
 //! If you plan to package your crate, you must make sure you include the generated module
 //! and font file in the final package. `build` is effectively a no-op when the module and
 //! the font already exist and are up-to-date.
+mod svg_parser;
+
 use reqwest::blocking as reqwest;
 use serde::{Deserialize, Serialize};
+use sha2::Digest as _;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -123,10 +126,34 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
 
     let fonts = parse_fonts();
 
+    let mut svg_idx = 0;
     let glyphs: BTreeMap<String, ChosenGlyph> = definition
         .glyphs
         .into_iter()
-        .map(|(name, id)| {
+        .flat_map(|(name, id)| {
+            if id.ends_with(".svg") {
+                let uid = {
+                    let mut hasher = sha2::Sha256::new();
+                    hasher.update(&id);
+
+                    format!("{:x}", hasher.finalize()).split_off(32)
+                };
+                let code = 0xe800 + svg_idx;
+                let icon_path = path
+                    .parent()
+                    .unwrap_or_else(|| {
+                        panic!("Couldn't get parent folder of \"{}\"", path.display())
+                    })
+                    .join(id);
+
+                if let Some(glyph) = svg_parser::parse_image(&icon_path, name.clone(), code, uid) {
+                    svg_idx += 1;
+                    return Some((name, glyph));
+                } else {
+                    return None;
+                }
+            }
+
             let Some((font_name, glyph)) = id.split_once('-') else {
                 panic!(
                     "Invalid glyph identifier: \"{id}\"\n\
@@ -157,36 +184,19 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
                 );
             };
 
-            (
+            Some((
                 name,
                 ChosenGlyph {
                     uid: glyph.uid.clone(),
                     css: glyph.name.clone(),
                     code: glyph.code,
                     src: font.name.clone(),
+                    selected: None,
+                    svg: None,
                 },
-            )
+            ))
         })
         .collect();
-
-    #[derive(Serialize)]
-    struct Config {
-        name: String,
-        css_prefix_text: &'static str,
-        css_use_suffix: bool,
-        hinting: bool,
-        units_per_em: u32,
-        ascent: u32,
-        glyphs: Vec<ChosenGlyph>,
-    }
-
-    #[derive(Clone, Serialize)]
-    struct ChosenGlyph {
-        uid: Id,
-        css: String,
-        code: u64,
-        src: String,
-    }
 
     let file_name = path
         .file_stem()
@@ -205,8 +215,6 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
     };
 
     let hash = {
-        use sha2::Digest as _;
-
         let mut hasher = sha2::Sha256::new();
         hasher.update(serde_json::to_string(&config).expect("Serialize config as JSON"));
 
@@ -269,11 +277,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         .expect("Extract font file");
     }
 
-    let relative_path = PathBuf::from(
-        std::iter::repeat("../")
-            .take(definition.module.split("::").count())
-            .collect::<String>(),
-    );
+    let relative_path = PathBuf::from("../".repeat(definition.module.split("::").count()));
 
     let mut module = String::new();
 
@@ -340,7 +344,36 @@ struct Glyph {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-struct Id(String);
+pub(crate) struct Id(String);
+
+#[derive(Serialize)]
+struct Config {
+    name: String,
+    css_prefix_text: &'static str,
+    css_use_suffix: bool,
+    hinting: bool,
+    units_per_em: u32,
+    ascent: u32,
+    glyphs: Vec<ChosenGlyph>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct ChosenGlyph {
+    uid: Id,
+    css: String,
+    code: u64,
+    src: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    selected: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    svg: Option<SvgIcon>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct SvgIcon {
+    path: String,
+    width: f32,
+}
 
 fn parse_fonts() -> BTreeMap<String, Font> {
     #[derive(Deserialize)]
