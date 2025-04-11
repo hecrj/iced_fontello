@@ -372,7 +372,7 @@ pub(crate) struct ChosenGlyph {
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct SvgIcon {
     path: String,
-    width: f64,
+    width: f32,
 }
 
 fn parse_fonts() -> BTreeMap<String, Font> {

@@ -1,139 +1,64 @@
-use std::{collections::BTreeMap, path::Path};
-
-use svg::{
-    node::element::tag::{self, Type},
-    parser::Event,
-};
-use svg_path_ops::pt::PathTransformer;
+use std::path::Path;
 
 use crate::{ChosenGlyph, Id, SvgIcon};
 
+use usvg::{
+    tiny_skia_path::{self, PathBuilder, PathSegment, Transform},
+    Node, Options, Tree,
+};
+
 pub fn parse_image(icon_path: &Path, name: String, code: u64, uid: String) -> Option<ChosenGlyph> {
-    let mut content = String::new();
-    let parser = svg::open(icon_path, &mut content).unwrap_or_else(|error| {
+    let mut svg_path = String::new();
+
+    let svg_str = std::fs::read_to_string(icon_path).unwrap_or_else(|error| {
         panic!(
             "SVG icon file \"{}\" could not be read: {error}",
             icon_path.display()
         )
     });
-    let mut svg_path = String::new();
-    let mut group_nest_level = 0;
-    let mut svg_view_box = String::new();
-    let mut svg_x = 0.0;
-    let mut svg_y = 0.0;
+
+    let usvg_tree = Tree::from_str(&svg_str, &Options::default()).unwrap_or_else(|error| {
+        panic!(
+            "SVG icon file \"{}\" could not be parsed: {error}",
+            icon_path.display()
+        )
+    });
+
     let mut svg_width = 0.0;
-    let mut svg_height = 0.0;
-    let mut transforms = String::new();
-    let mut transforms_map = BTreeMap::new();
 
-    for event in parser {
-        match event {
-            Event::Tag(tag::Group, Type::Start, attributes) => {
-                group_nest_level += 1;
-                if let Some(t) = attributes.get("transform") {
-                    let t = t.to_string();
-                    transforms = transforms + " " + &t;
-                    transforms_map.insert(group_nest_level, t);
-                }
-            }
-            Event::Tag(tag::Group, Type::End, _) => {
-                if let Some(t) = transforms_map.remove(&group_nest_level) {
-                    transforms = transforms.trim_end_matches(&t).to_string();
-                }
-                group_nest_level -= 1;
-            }
-            Event::Tag(tag::Path, _, attributes) => {
-                if let Some(p) = attributes.get("d") {
-                    let path_transforms = if let Some(t) = attributes.get("transform") {
-                        transforms.clone() + " " + t.to_string().as_str()
-                    } else {
-                        transforms.clone()
-                    };
-                    let mut current_path = p.to_string();
-                    if !transforms.is_empty() {
-                        let mut pt = PathTransformer::new(current_path);
-                        pt.transform(path_transforms);
-                        current_path = pt.to_string();
-                    }
-                    svg_path += &current_path;
-                }
-            }
-            Event::Tag(tag::SVG, _, attributes) => {
-                if let Some(x) = attributes.get("x") {
-                    svg_x = x
-                        .to_string()
-                        .parse()
-                        .expect("couldn't parse \"x\" from svg icon");
-                }
-                if let Some(y) = attributes.get("y") {
-                    svg_y = y
-                        .to_string()
-                        .parse()
-                        .expect("couldn't parse \"y\" from svg icon");
-                }
-                if let Some(w) = attributes.get("width") {
-                    let w = w.to_string();
-                    if w.ends_with("%") {
-                        // Ignore percentage sizes just like fontello does here:
-                        // https://github.com/fontello/fontello/blob/master/client/fontello/app/import/_svg_image_flatten.js#L198-L203
-                        svg_width = 0.0;
-                    } else {
-                        svg_width = w.parse().expect("couldn't parse \"width\" from svg icon");
-                    }
-                }
-                if let Some(h) = attributes.get("height") {
-                    let h = h.to_string();
-                    if h.ends_with("%") {
-                        // Ignore percentage sizes just like fontello does here:
-                        // https://github.com/fontello/fontello/blob/master/client/fontello/app/import/_svg_image_flatten.js#L198-L203
-                        svg_height = 0.0;
-                    } else {
-                        svg_height = h.parse().expect("couldn't parse \"height\" from svg icon");
-                    }
-                }
-                if let Some(view_box) = attributes.get("viewBox") {
-                    svg_view_box = view_box.to_string();
-                }
-            }
-            _ => {}
-        }
+    // Create new `PathBuilder`
+    let mut path_builder = PathBuilder::new();
+
+    // Process the SVG tree using the path_builder
+    usvg_tree
+        .root()
+        .children()
+        .iter()
+        .for_each(|n| process_node(n, &mut path_builder));
+
+    // Finish the path builder and apply the final translate and scale transforms
+    if let Some(final_path) = path_builder.finish() {
+        let bounds = final_path.bounds();
+        let scale = 1000.0 / bounds.height();
+        let svg_x = bounds.left();
+        let svg_y = bounds.top();
+
+        // Translate and scale
+        let final_path = final_path
+            .transform(Transform::from_translate(-svg_x, -svg_y).post_scale(scale, scale))
+            .unwrap_or_else(|| {
+                panic!(
+                    "SVG icon file \"{}\" failed to apply final translate and scale transform",
+                    icon_path.display()
+                )
+            });
+
+        let final_bounds = final_path.bounds();
+        svg_width = final_bounds.width();
+
+        // Write path to string
+        svg_path = write_path(final_path);
     }
-
-    let mut pt = PathTransformer::new(svg_path);
-    let mut actual_height = svg_height;
-
-    if !svg_view_box.is_empty() {
-        let vb = svg_view_box.split(" ").collect::<Vec<_>>();
-        if vb.len() != 4 {
-            panic!(
-                "SVG Icon \"{}\" should have viewBox with 4 elements)",
-                icon_path.display()
-            );
-        }
-        let vb = vb
-            .into_iter()
-            .map(|e| e.parse().expect("viewBox element should be a number"))
-            .collect::<Vec<f64>>();
-        let _x = vb[0];
-        let y = vb[1];
-        let vb_width = vb[2];
-        let vb_height = vb[3];
-        if svg_width == 0.0 {
-            svg_width = vb_width;
-        }
-        actual_height = f64::max(actual_height, vb_height - y);
-    }
-
-    // Translate the final path
-    pt.translate(-svg_x, -svg_y);
-
-    // Scale the final path
-    let scale = 1000.0 / actual_height;
-    pt.scale(scale, scale);
-    svg_width *= scale;
-
-    // Final transformed path
-    svg_path = pt.to_string();
 
     if !svg_path.is_empty() && svg_width != 0.0 {
         Some(ChosenGlyph {
@@ -150,4 +75,50 @@ pub fn parse_image(icon_path: &Path, name: String, code: u64, uid: String) -> Op
     } else {
         None
     }
+}
+
+/// Process the nodes of an SVG tree by pushing each new path to the `path_builder`. The paths are
+/// transformed before being pushed using their absolute transform which includes the parents
+/// transforms.
+fn process_node(node: &Node, path_builder: &mut PathBuilder) {
+    match node {
+        Node::Group(group) => {
+            group
+                .children()
+                .iter()
+                .for_each(|n| process_node(n, path_builder));
+        }
+        Node::Path(path) => {
+            let t = path.abs_transform();
+            let path_data = path.data().clone();
+            if let Some(transformed_path) = path_data.transform(t) {
+                path_builder.push_path(&transformed_path);
+            } else {
+                path_builder.push_path(path.data());
+            }
+        }
+        Node::Image(_image) => {}
+        Node::Text(_text) => {}
+    }
+}
+
+/// Prints the `path` into a string of segments that can be used by fontello's glyph path
+fn write_path(path: tiny_skia_path::Path) -> String {
+    let mut s = String::new();
+    for segment in path.segments() {
+        match segment {
+            PathSegment::MoveTo(p) => s.push_str(&format!("M {} {} ", p.x, p.y)),
+            PathSegment::LineTo(p) => s.push_str(&format!("L {} {} ", p.x, p.y)),
+            PathSegment::QuadTo(p0, p1) => {
+                s.push_str(&format!("Q {} {} {} {} ", p0.x, p0.y, p1.x, p1.y))
+            }
+            PathSegment::CubicTo(p0, p1, p2) => s.push_str(&format!(
+                "C {} {} {} {} {} {} ",
+                p0.x, p0.y, p1.x, p1.y, p2.x, p2.y
+            )),
+            PathSegment::Close => s.push_str("Z "),
+        }
+    }
+    s.pop(); // remove last trailing space
+    s
 }
