@@ -281,8 +281,8 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         "// Generated automatically by iced_fontello at build time.\n\
          // Do not edit manually. Source: {source}\n\
          // {hash}\n\
-         use iced::widget::{{text, Text}};\n\
-         use iced::Font;\n\n\
+         use iced::Font;\n\
+         use iced::widget::{{Text, text}};\n\n\
          pub const FONT: &[u8] = include_bytes!(\"{path}\");\n\n",
         source = relative_path.join(path.with_extension("toml")).display(),
         path = relative_path.join(path.with_extension("ttf")).display()

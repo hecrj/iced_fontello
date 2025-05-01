@@ -1,7 +1,7 @@
 mod icon;
 
-use iced::widget::{center, row};
 use iced::Element;
+use iced::widget::{center, row};
 
 fn main() -> iced::Result {
     iced::application("Fontello Icons", Example::update, Example::view)
