@@ -18,7 +18,7 @@ toml = "0.8"
 zip = "2"
 
 [workspace]
-members = ["example"]
+members = ["examples/*"]
 
 [workspace.dependencies]
 iced_fontello = { version = "0.14.0-dev", path = "." }

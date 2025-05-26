@@ -1,0 +1,6 @@
+module = "icon"
+format = "enum"
+
+[glyphs]
+save = "fontawesome-floppy"
+search = "typicons-search"

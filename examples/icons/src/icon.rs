@@ -1,10 +1,10 @@
 // Generated automatically by iced_fontello at build time.
 // Do not edit manually. Source: ../fonts/example-icons.toml
-// d24460a00249b2acd0ccc64c3176452c546ad12d1038974e974d7bdb4cdb4a8f
-use iced::Font;
-use iced::widget::{Text, text};
-
+// 1ee4837dfa5e832a5f40be4048333d81b3dcb9723a6549f033480bb4b0f6f2fa
 pub const FONT: &[u8] = include_bytes!("../fonts/example-icons.ttf");
+
+use iced::Font;
+use iced::widget::{{Text, text}};
 
 pub fn edit<'a>() -> Text<'a> {
     icon("\u{270E}")

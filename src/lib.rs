@@ -52,10 +52,10 @@
 //! // Generated automatically by iced_fontello at build time.
 //! // Do not edit manually.
 //! // d24460a00249b2acd0ccc64c3176452c546ad12d1038974e974d7bdb4cdb4a8f
+//! pub const FONT: &[u8] = include_bytes!("../fonts/example-icons.ttf");
+//!
 //! use iced::widget::{text, Text};
 //! use iced::Font;
-//!
-//! pub const FONT: &[u8] = include_bytes!("../fonts/example-icons.ttf");
 //!
 //! pub fn edit<'a>() -> Text<'a> {
 //!     icon("\u{270E}")
@@ -275,35 +275,12 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
             .collect::<String>(),
     );
 
-    let mut module = String::new();
-
-    module.push_str(&format!(
-        "// Generated automatically by iced_fontello at build time.\n\
-         // Do not edit manually. Source: {source}\n\
-         // {hash}\n\
-         use iced::Font;\n\
-         use iced::widget::{{Text, text}};\n\n\
-         pub const FONT: &[u8] = include_bytes!(\"{path}\");\n\n",
-        source = relative_path.join(path.with_extension("toml")).display(),
-        path = relative_path.join(path.with_extension("ttf")).display()
-    ));
-
-    for (name, glyph) in glyphs {
-        module.push_str(&format!(
-            "\
-pub fn {name}<'a>() -> Text<'a> {{
-    icon(\"\\u{{{code:X}}}\")
-}}\n\n",
-            code = glyph.code
-        ));
-    }
-
-    module.push_str(&format!(
-        "\
-fn icon(codepoint: &str) -> Text<'_> {{
-    text(codepoint).font(Font::with_name(\"{file_name}\"))
-}}\n"
-    ));
+    let module = definition.format.module(
+        relative_path.join(path),
+        file_name,
+        hash,
+        glyphs.iter().map(|g| (g.0, g.1.code)),
+    );
 
     if module != module_contents {
         if let Some(directory) = module_target.parent() {
@@ -322,7 +299,97 @@ pub enum Error {}
 #[derive(Debug, Clone, Deserialize)]
 struct Definition {
     module: String,
+    #[serde(default)]
+    format: Format,
     glyphs: BTreeMap<String, String>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum Format {
+    #[default]
+    Fn,
+    Enum,
+}
+
+impl Format {
+    fn module<'a>(
+        &self,
+        path: PathBuf,
+        name: String,
+        hash: String,
+        glyphs: impl Iterator<Item = (&'a String, u64)>,
+    ) -> String {
+        let mut module = format!(
+            "// Generated automatically by iced_fontello at build time.\n\
+             // Do not edit manually. Source: {source}\n\
+             // {hash}\n\
+             pub const FONT: &[u8] = include_bytes!(\"{path}\");\n\n",
+            source = path.with_extension("toml").display(),
+            path = path.with_extension("ttf").display()
+        );
+        match self {
+            Format::Fn => {
+                module.push_str(
+                    "\
+                    use iced::Font;\n\
+                    use iced::widget::{{Text, text}};\n\n\
+                ",
+                );
+
+                for (name, code) in glyphs {
+                    module.push_str(&format!(
+                        "\
+pub fn {name}<'a>() -> Text<'a> {{
+    icon(\"\\u{{{code:X}}}\")
+}}\n\n"
+                    ));
+                }
+
+                module.push_str(&format!(
+                    "\
+fn icon(codepoint: &str) -> Text<'_> {{
+    text(codepoint).font(Font::with_name(\"{name}\"))
+}}\n"
+                ));
+            }
+            Format::Enum => {
+                let mut enum_block = String::new();
+                let mut as_char_block = String::new();
+                for (name, code) in glyphs {
+                    let name: String = name
+                        .split('_')
+                        .map(|w| {
+                            w.chars()
+                                .enumerate()
+                                .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+                                .collect::<String>()
+                        })
+                        .collect();
+                    enum_block.push_str(&format!("    {name},\n"));
+                    as_char_block
+                        .push_str(&format!("            Icon::{name} => '\\u{{{code:X}}}',\n"));
+                }
+
+                module.push_str(&format!(
+                    "\
+pub const ICON_FONT: iced::Font = iced::Font::with_name(\"{name}\");
+
+pub enum Icon {{
+{enum_block}\
+}}
+
+impl From<Icon> for char {{
+    fn from(icon: Icon) -> Self {{
+        match icon {{
+{as_char_block}        }}
+    }}
+}}\n"
+                ));
+            }
+        }
+        module
+    }
 }
 
 #[derive(Debug, Clone)]
