@@ -9,7 +9,7 @@
 //! Create a `.toml` file somewhere in your crate with the font definition:
 //!
 //! ```toml
-//! # fonts/example-icons.toml
+//! # fonts/fn-icons.toml
 //! module = "icon"
 //!
 //! [glyphs]
@@ -38,13 +38,13 @@
 //!
 //! ```rust,no_run
 //! pub fn main() {
-//!     println!("cargo::rerun-if-changed=fonts/example-icons.toml");
-//!     iced_fontello::build("fonts/example-icons.toml").expect("Build example-icons font");
+//!     println!("cargo::rerun-if-changed=fonts/fn-icons.toml");
+//!     iced_fontello::build("fonts/fn-icons.toml").expect("Build fn-icons font");
 //! }
 //! ```
 //!
 //! The library will generate the font and save its `.ttf` file right next to its definition.
-//! In this example, the library would generate `fonts/example-icons.ttf`.
+//! In this example, the library would generate `fonts/fn-icons.ttf`.
 //!
 //! Finally, it will generate a type-safe `iced` API that lets you use the font. In our example:
 //!
@@ -52,7 +52,7 @@
 //! // Generated automatically by iced_fontello at build time.
 //! // Do not edit manually.
 //! // d24460a00249b2acd0ccc64c3176452c546ad12d1038974e974d7bdb4cdb4a8f
-//! pub const FONT: &[u8] = include_bytes!("../fonts/example-icons.ttf");
+//! pub const FONT: &[u8] = include_bytes!("../fonts/fn-icons.ttf");
 //!
 //! use iced::widget::{text, Text};
 //! use iced::Font;
@@ -70,7 +70,7 @@
 //! }
 //!
 //! fn icon<'a>(codepoint: &'a str) -> Text<'a> {
-//!     text(codepoint).font(Font::with_name("example-icons"))
+//!     text(codepoint).font(Font::with_name("fn-icons"))
 //! }
 //! ```
 //!

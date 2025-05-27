@@ -1,4 +1,4 @@
-module = "icon"
+module = "icon::icon_fn"
 
 [glyphs]
 edit = "fontawesome-pencil"
