@@ -1,6 +1,6 @@
-module = "icon"
+module = "icon::icon_fn"
 
 [glyphs]
 edit = "fontawesome-pencil"
-save = "entypo-floppy"
+save = "fontawesome-floppy"
 trash = "typicons-trash"

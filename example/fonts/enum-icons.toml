@@ -1,0 +1,6 @@
+module = "icon::icon_enum"
+format = "enum"
+
+[glyphs]
+erase = "entypo-erase"
+search = "typicons-search"
