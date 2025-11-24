@@ -18,7 +18,7 @@
 //! trash = "typicons-trash"
 //! ```
 //!
-//! The `module` value defines the Rust module that will be generated in your `src`
+//! The `module` value defines the Rust module that will be generated in your `$OUT_DIR`
 //! directory containing a type-safe API to use the font.
 //!
 //! Each entry in the `[glyphs]` section corresponds to an icon. The keys will be
@@ -77,7 +77,9 @@
 //! Now you can simply add `mod icon;` to your `lib.rs` or `main.rs` file and enjoy your new font:
 //!
 //! ```rust,ignore
-//! mod icon;
+//! mod icon {
+//!     include!(concat!(env!("OUT_DIR"), "/icon.rs"));
+//! }
 //!
 //! use iced::widget::row;
 //!
@@ -98,25 +100,25 @@ use reqwest::blocking as reqwest;
 use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
-    let path = path.as_ref();
+    let font_definition_path = path.as_ref();
 
     let definition: Definition = {
-        let contents = fs::read_to_string(path).unwrap_or_else(|error| {
+        let contents = fs::read_to_string(font_definition_path).unwrap_or_else(|error| {
             panic!(
                 "Font definition {path} could not be read: {error}",
-                path = path.display()
+                path = font_definition_path.display()
             )
         });
 
         toml::from_str(&contents).unwrap_or_else(|error| {
             panic!(
                 "Font definition {path} is invalid: {error}",
-                path = path.display()
+                path = font_definition_path.display()
             )
         })
     };
@@ -188,7 +190,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         src: String,
     }
 
-    let file_name = path
+    let file_name = font_definition_path
         .file_stem()
         .expect("Get file stem from definition path")
         .to_string_lossy()
@@ -213,19 +215,13 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
         format!("{:x}", hasher.finalize())
     };
 
-    let module_target = PathBuf::new()
-        .join("src")
-        .join(definition.module.replace("::", "/"))
-        .with_extension("rs");
+    // All generated files will be under $OUT_DIR
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Count not read '$OUT_DIR' env var"));
 
-    let module_contents = fs::read_to_string(&module_target).unwrap_or_default();
-    let module_hash = module_contents
-        .lines()
-        .nth(2)
-        .unwrap_or_default()
-        .trim_start_matches("// ");
-
-    if hash != module_hash || !path.with_extension("ttf").exists() {
+    let font_file_name = format!("{file_name}.ttf");
+    // The TTF font file with name `font_file_name` will be generated in `$OUT_DIR`
+    let font_target = out_dir.join(&font_file_name);
+    if !font_target.exists() {
         let client = reqwest::Client::new();
         let session = client
             .post("https://fontello.com/")
@@ -257,35 +253,30 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
             .find(|i| {
                 let file = archive.by_index(*i).expect("Access zip archive by index");
 
-                file.name().ends_with(&format!("{file_name}.ttf"))
+                file.name().ends_with(&font_file_name)
             })
             .and_then(|i| archive.by_index(i).ok())
             .expect("Find font file in zipped archive");
 
         io::copy(
             &mut font_file,
-            &mut fs::File::create(path.with_extension("ttf")).expect("Create font file"),
+            &mut fs::File::create(&font_target).expect("Create font file"),
         )
         .expect("Extract font file");
     }
 
-    let relative_path = PathBuf::from(
-        std::iter::repeat("../")
-            .take(definition.module.split("::").count())
-            .collect::<String>(),
-    );
-
     let mut module = String::new();
 
+    // `source` is relative to project root (where `build.rs` lives)
+    // `font_file_path` is relative to `$OUT_DIR`
     module.push_str(&format!(
         "// Generated automatically by iced_fontello at build time.\n\
          // Do not edit manually. Source: {source}\n\
          // {hash}\n\
          use iced::Font;\n\
          use iced::widget::{{Text, text}};\n\n\
-         pub const FONT: &[u8] = include_bytes!(\"{path}\");\n\n",
-        source = relative_path.join(path.with_extension("toml")).display(),
-        path = relative_path.join(path.with_extension("ttf")).display()
+         pub const FONT: &[u8] = include_bytes!(\"{font_file_name}\");\n\n",
+        source = font_definition_path.with_extension("toml").display(),
     ));
 
     for (name, glyph) in glyphs {
@@ -305,13 +296,10 @@ fn icon(codepoint: &str) -> Text<'_> {{
 }}\n"
     ));
 
-    if module != module_contents {
-        if let Some(directory) = module_target.parent() {
-            fs::create_dir_all(directory).expect("Create parent directory of font module");
-        }
-
-        fs::write(module_target, module).expect("Write font module");
-    }
+    let module_target = out_dir
+        .join(definition.module.replace("::", "/"))
+        .with_extension("rs");
+    fs::write(module_target, module).expect("Write font module");
 
     Ok(())
 }

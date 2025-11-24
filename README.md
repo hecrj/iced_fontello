@@ -87,10 +87,13 @@ fn icon<'a>(codepoint: &'a str) -> Text<'a> {
 }
 ```
 
-Now you can simply add `mod icon;` to your `lib.rs` or `main.rs` file and enjoy your new font:
+Now you can simply add `mod icon;` with the path to the generated rust file in your $OUT_DIR to your `lib.rs` 
+or `main.rs` file and enjoy your new font:
 
 ```rust
-mod icon;
+mod icon {
+    include!(concat!(env!("OUT_DIR"), "/icon.rs"));
+}
 
 use iced::widget::row;
 
@@ -102,6 +105,13 @@ row![icon::edit(), icon::save(), icon::trash()].spacing(10)
 ```
 
 Check out [the full example](example) to see it all in action.
+
+## Publishing
+NOTE: WHen publishing a package with `cargo publish`, `cargo` checks that the build script does not modify the 
+`/src` directory in any way.
+
+Since `ìced_fontello` generates font and module rust files under the $OUT_DIR folder, your crate using `iced_fontello`
+is able to be built, and tested in a clean directory and then published to crates.io or elsewhere.
 
 ## Packaging
 If you plan to package your crate, you must make sure you include the generated module
