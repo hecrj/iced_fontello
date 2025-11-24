@@ -1,4 +1,6 @@
-mod icon;
+mod icon {
+    include!(concat!(env!("OUT_DIR"), "/icon.rs"));
+}
 
 use iced::Element;
 use iced::widget::{center, row};
@@ -15,7 +17,7 @@ struct Example;
 impl Example {
     pub fn update(&mut self, _message: ()) {}
 
-    pub fn view(&self) -> Element<()> {
+    pub fn view(&self) -> Element<'_, ()> {
         center(row![icon::edit(), icon::save(), icon::trash()].spacing(10))
             .padding(20)
             .into()
