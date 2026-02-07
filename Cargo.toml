@@ -1,6 +1,6 @@
 [package]
 name = "iced_fontello"
-version = "0.14.0-dev"
+version = "0.14.0"
 edition = "2024"
 description = "Generate type-safe icon fonts for `iced` at compile time"
 repository = "https://github.com/hecrj/iced_fontello"
@@ -21,4 +21,4 @@ zip = "2"
 members = ["example"]
 
 [workspace.dependencies]
-iced_fontello = { version = "0.14.0-dev", path = "." }
+iced_fontello = { version = "0.14.0", path = "." }
