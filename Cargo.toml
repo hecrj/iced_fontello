@@ -1,6 +1,6 @@
 [package]
 name = "iced_fontello"
-version = "0.14.0"
+version = "0.14.1"
 edition = "2024"
 description = "Generate type-safe icon fonts for `iced` at compile time"
 repository = "https://github.com/hecrj/iced_fontello"
@@ -10,11 +10,11 @@ keywords = ["gui", "ui", "graphics", "interface", "widgets"]
 rust-version = "1.88"
 
 [dependencies]
-reqwest = { version = "0.12", features = ["blocking", "json", "multipart"] }
+reqwest = { version = "0.13", features = ["blocking", "json", "multipart"] }
 sha2 = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.8"
+toml = "0.9"
 zip = "7"
 
 [workspace]
