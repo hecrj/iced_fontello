@@ -74,6 +74,16 @@
 //! }
 //! ```
 //!
+//! Then add it to your `iced::application` builder call:
+//!
+//! ```rust,ignore
+//! fn main() -> iced::Result {
+//!     iced::application("Fontello Icons", Example::update, Example::view)
+//!         .font(icon::FONT)
+//!         .run()
+//! }
+//! ```
+//!
 //! Now you can simply add `mod icon;` to your `lib.rs` or `main.rs` file and enjoy your new font:
 //!
 //! ```rust,ignore
