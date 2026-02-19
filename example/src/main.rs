@@ -1,4 +1,6 @@
-mod icon;
+mod icon {
+    include!(concat!(env!("OUT_DIR"), "/icon.rs"));
+}
 
 use iced::Element;
 use iced::widget::{center, row};
