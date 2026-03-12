@@ -282,7 +282,8 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
          // Do not edit manually. Source: {source}\n\
          // {hash}\n\
          use iced::Font;\n\
-         use iced::widget::{{Text, text}};\n\n\
+         use iced::widget::{{Text, text}};\n\
+         use iced::widget::text::Catalog;\n\n\
          pub const FONT: &[u8] = include_bytes!(\"{path}\");\n\n",
         source = relative_path.join(path.with_extension("toml")).display(),
         path = relative_path.join(path.with_extension("ttf")).display()
@@ -291,7 +292,7 @@ pub fn build(path: impl AsRef<Path>) -> Result<(), Error> {
     for (name, glyph) in glyphs {
         module.push_str(&format!(
             "\
-pub fn {name}<'a>() -> Text<'a> {{
+pub fn {name}<'a, Theme: Catalog + 'a>() -> Text<'a, Theme> {{
     icon(\"\\u{{{code:X}}}\")
 }}\n\n",
             code = glyph.code
@@ -300,7 +301,7 @@ pub fn {name}<'a>() -> Text<'a> {{
 
     module.push_str(&format!(
         "\
-fn icon(codepoint: &str) -> Text<'_> {{
+fn icon<'a, Theme: Catalog + 'a>(codepoint: &'a str) -> Text<'a, Theme> {{
     text(codepoint).font(Font::with_name(\"{file_name}\"))
 }}\n"
     ));

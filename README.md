@@ -66,23 +66,24 @@ Finally, it will generate a type-safe `iced` API that lets you use the font. In 
 // Do not edit manually.
 // d24460a00249b2acd0ccc64c3176452c546ad12d1038974e974d7bdb4cdb4a8f
 use iced::widget::{text, Text};
+use iced::widget::text::Catalog;
 use iced::Font;
 
 pub const FONT: &[u8] = include_bytes!("../fonts/example-icons.ttf");
 
-pub fn edit<'a>() -> Text<'a> {
+pub fn edit<'a, Theme: Catalog + 'a>() -> Text<'a, Theme> {
     icon("\u{270E}")
 }
 
-pub fn save<'a>() -> Text<'a> {
+pub fn save<'a, Theme: Catalog + 'a>() -> Text<'a, Theme> {
     icon("\u{1F4BE}")
 }
 
-pub fn trash<'a>() -> Text<'a> {
+pub fn trash<'a, Theme: Catalog + 'a>() -> Text<'a, Theme> {
     icon("\u{E10A}")
 }
 
-fn icon<'a>(codepoint: &'a str) -> Text<'a> {
+fn icon<'a, Theme: Catalog + 'a>(codepoint: &'a str) -> Text<'a, Theme> {
     text(codepoint).font(Font::with_name("example-icons"))
 }
 ```
